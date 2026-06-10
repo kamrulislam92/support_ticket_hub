@@ -4,7 +4,10 @@
 <meta charset="UTF-8">
 <title>Login</title>
 
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght=300;400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css">
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js"></script>
 
 <style>
 body {
@@ -17,7 +20,6 @@ body {
     background: linear-gradient(135deg, #667eea, #764ba2);
 }
 
-/* Glass Card */
 .login-box {
     width: 380px;
     padding: 40px;
@@ -35,7 +37,6 @@ body {
     font-weight: 700;
 }
 
-/* Inputs */
 .input {
     width: 100%;
     padding: 12px;
@@ -44,9 +45,9 @@ body {
     border: none;
     outline: none;
     font-size: 14px;
+    color: #333;
 }
 
-/* Button */
 .btn {
     width: 100%;
     padding: 12px;
@@ -63,16 +64,6 @@ body {
     background: #0096c7;
 }
 
-/* Error */
-.error {
-    background: rgba(255,0,0,0.2);
-    padding: 10px;
-    border-radius: 10px;
-    margin-bottom: 10px;
-    display: none;
-}
-
-/* Loader */
 .loading {
     display: none;
     text-align: center;
@@ -85,115 +76,168 @@ body {
 <body>
 
 <div class="login-box">
-
     <h2>Welcome Back</h2>
-    <p style="text-align:center; opacity:0.8; font-size:13px;">Login to your account</p>
-
-    <div class="error" id="errorBox"></div>
+    <p style="text-align:center; opacity:0.8; font-size:13px; margin-bottom: 20px;">Login to your account</p>
 
     <form id="loginForm">
         @csrf
-
         <input type="email" name="email" id="email" class="input" placeholder="Email address" required>
-
         <input type="password" name="password" id="password" class="input" placeholder="Password" required>
 
-        <button class="btn" type="submit" id="loginBtn">
-            Login
-        </button>
-
+        <button class="btn" type="submit" id="loginBtn">Login</button>
         <div class="loading" id="loading">Logging in...</div>
     </form>
-
 </div>
 
 <script>
-// document.getElementById('loginForm')
-// .addEventListener('submit', async function(e){
+$(document).ready(function() {
+    // Toastr কনফিগারেশন
+    toastr.options = {
+        "closeButton": true,
+        "progressBar": true,
+        "positionClass": "toast-top-right",
+        "timeOut": "3000"
+    };
 
-//     e.preventDefault();
+    // ড্যাশবোর্ড থেকে লগআউট হয়ে আসলে নোটিফিকেশন দেখাবে
+    const pendingToast = sessionStorage.getItem('toast_message');
+    const toastType = sessionStorage.getItem('toast_type');
+    if (pendingToast) {
+        if (toastType === 'success') toastr.success(pendingToast);
+        else if (toastType === 'error') toastr.error(pendingToast);
+        else if (toastType === 'warning') toastr.warning(pendingToast);
+        else toastr.info(pendingToast);
 
-//     let errorBox = document.getElementById('errorBox');
-//     let loading = document.getElementById('loading');
-//     let btn = document.getElementById('loginBtn');
-
-//     errorBox.style.display = "none";
-//     loading.style.display = "block";
-//     btn.disabled = true;
-
-//     let response = await fetch('/support_ticket_hub/public/api/login', {
-//         method: 'POST',
-//         headers: {
-//             'Content-Type': 'application/json',
-//             'Accept': 'application/json'
-//         },
-//         body: JSON.stringify({
-//             email: document.getElementById('email').value,
-//             password: document.getElementById('password').value
-//         })
-//     });
-
-//     let data = await response.json();
-
-//     loading.style.display = "none";
-//     btn.disabled = false;
-
-//     if(data.success){
-
-//         if(data.role === 'admin'){
-//             window.location.href = '/admin/dashboard';
-//         }
-//         else{
-//             window.location.href = '/user/dashboard';
-//         }
-
-//     }else{
-
-//         errorBox.style.display = "block";
-//         errorBox.innerText = data.message;
-
-//     }
-
-// });
-
-
-
-
-
-const BASE_URL = '/support_ticket_hub/public';
-
-document.getElementById('loginForm')
-.addEventListener('submit', async function(e){
-
-    e.preventDefault();
-
-    let response = await fetch(BASE_URL + '/api/login', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json'
-        },
-        body: JSON.stringify({
-            email: document.getElementById('email').value,
-            password: document.getElementById('password').value
-        })
-    });
-
-    let data = await response.json();
-
-    if(data.success){
-
-        if(data.role === 'admin'){
-            window.location.href = BASE_URL + '/admin/dashboard';
-        } else {
-            window.location.href = BASE_URL + '/user/dashboard';
-        }
-
-    } else {
-        alert(data.message);
+        sessionStorage.removeItem('toast_message');
+        sessionStorage.removeItem('toast_type');
     }
 
+    // ফর্ম সাবমিট হ্যান্ডলার (যা আপনার কোডে মিসিং ছিল)
+    $('#loginForm').on('submit', function(e) {
+        e.preventDefault();
+        const email = $('#email').val();
+        const password = $('#password').val();
+        loginUser(email, password);
+    });
 });
+
+
+function loginUser(email, password) {
+    const baseUrl = window.location.origin + '/support_ticket_hub/public';
+    
+    // লোডার দেখানো এবং বাটন ডিজেবল করা
+    $('#loginBtn').prop('disabled', true);
+    $('#loading').show();
+
+    fetch(baseUrl + '/api/login', {
+        method: 'POST',
+        headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            email: email,
+            password: password
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        $('#loginBtn').prop('disabled', false);
+        $('#loading').hide();
+
+        if (data.success) {
+            // ১. টোকেন এবং ইউজার ডেটা লোকাল স্টোরেজে সেভ করা
+            localStorage.setItem('token', data.token);
+            localStorage.setItem('user', JSON.stringify(data.user)); // অবজেক্টকে স্ট্রিং আকারে সেভ করা
+            
+            // সেশনে মেসেজ রাখা যাতে ড্যাশবোর্ডে টোস্টার দেখায়
+            sessionStorage.setItem('toast_message', 'Welcome back! Login Successful.');
+            sessionStorage.setItem('toast_type', 'success');
+
+            // ২. রোল (Role) অনুযায়ী ডাইনামিক রিডাইরেকশন
+            // ব্যাকএন্ড থেকে আসা ইউজার অবজেক্টের ভেতর রোল চেক করা হচ্ছে
+            if (data.user && data.user.role === 'admin') {
+                window.location.href = baseUrl + '/admin/dashboard';
+            } else {
+                window.location.href = baseUrl + '/user/dashboard';
+            }
+        } else {
+            toastr.error(data.message || 'Invalid email or password.');
+        }
+    })
+    .catch(error => {
+        $('#loginBtn').prop('disabled', false);
+        $('#loading').hide();
+        console.error('Error:', error);
+        toastr.error('Connection refused or Server Error.');
+    });
+}
+
+
+
+
+
+// function loginUser(email, password) {
+//     const baseUrl = window.location.origin + '/support_ticket_hub/public';
+    
+//     // লোডার দেখানো এবং বাটন ডিজেবল করা
+//     $('#loginBtn').prop('disabled', true);
+//     $('#loading').show();
+
+//     fetch(baseUrl + '/api/login', {
+//         method: 'POST',
+//         headers: {
+//             'Accept': 'application/json',
+//             'Content-Type': 'application/json'
+//         },
+//         body: JSON.stringify({
+//             email: email,
+//             password: password
+//         })
+//     })
+//     .then(response => response.json())
+//     .then(data => {
+//         $('#loginBtn').prop('disabled', false);
+//         $('#loading').hide();
+
+//         if (data.success) {
+//             // ১. টোকেন ব্রাউজারে সেভ করা
+//             localStorage.setItem('token', data.token);
+            
+//             // সেশনে মেসেজ রাখা যাতে পরের পেজে গিয়ে দেখায়
+//             sessionStorage.setItem('toast_message', 'Welcome back! Login Successful.');
+//             sessionStorage.setItem('toast_type', 'success');
+
+//             // ২. ড্যাশবোর্ডে রিডাইরেক্ট করা (web.php এর রুট অনুযায়ী)
+//             window.location.href = baseUrl + '/admin/dashboard'; 
+//         } else {
+//             toastr.error(data.message || 'Invalid email or password.');
+//         }
+
+// // if(data.success){
+// //     // টোকেন এবং ইউজার অবজেক্ট লোকাল স্টোরেজে সেভ করে রাখা হচ্ছে
+// //     localStorage.setItem('token', data.token);
+// //     localStorage.setItem('user', JSON.stringify(data.user));
+
+// //     if(data.role === 'admin'){
+// //         window.location.href = BASE_URL + '/admin/dashboard';
+// //     } else {
+// //         window.location.href = BASE_URL + '/user/dashboard';
+// //     }
+// // }
+
+
+
+
+
+//     })
+//     .catch(error => {
+//         $('#loginBtn').prop('disabled', false);
+//         $('#loading').hide();
+//         console.error('Error:', error);
+//         toastr.error('Connection refused or Server Error.');
+//     });
+// }
 </script>
 
 </body>
